@@ -16,11 +16,8 @@ public class RunnerTest {
 
         ClassWorld world = new ClassWorld();
 
-        ClassRealm apiRealm = world.newRealm("api");
-        apiRealm.addURL(new URL(basePath + "/ca/ibodrov/classworlds-test-plugin-api/1.0-SNAPSHOT/classworlds-test-plugin-api-1.0-SNAPSHOT.jar"));
-
         ClassRealm blueRealm = world.newRealm("blue");
-        blueRealm.importFrom("api", "ca.ibodrov.classworldstest.api");
+        blueRealm.addURL(new URL(basePath + "/com/google/guava/guava/28.1-jre/guava-28.1-jre.jar"));
         blueRealm.addURL(new URL(basePath + "/ca/ibodrov/classworlds-test-plugin-blue/1.0-SNAPSHOT/classworlds-test-plugin-blue-1.0-SNAPSHOT.jar"));
 
         Class<Task> klass = (Class<Task>) blueRealm.loadClass("ca.ibodrov.classworldstest.plugin.blue.BlueTask");
