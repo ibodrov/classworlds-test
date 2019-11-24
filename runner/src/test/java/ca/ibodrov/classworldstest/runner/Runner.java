@@ -3,8 +3,13 @@ package ca.ibodrov.classworldstest.runner;
 import ca.ibodrov.classworldstest.api.Task;
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils;
 import org.codehaus.plexus.classworlds.ClassWorld;
+import org.codehaus.plexus.classworlds.launcher.Launcher;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
-import org.eclipse.aether.*;
+import org.eclipse.aether.AbstractRepositoryListener;
+import org.eclipse.aether.DefaultRepositorySystemSession;
+import org.eclipse.aether.RepositoryEvent;
+import org.eclipse.aether.RepositorySystem;
+import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.collection.CollectRequest;
@@ -23,10 +28,10 @@ import org.eclipse.aether.transfer.AbstractTransferListener;
 import org.eclipse.aether.transfer.TransferEvent;
 import org.eclipse.aether.transport.file.FileTransporterFactory;
 import org.eclipse.aether.transport.http.HttpTransporterFactory;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -36,19 +41,40 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class RunnerTest {
+public class Runner {
 
-    private static final Logger log = LoggerFactory.getLogger(RunnerTest.class);
+    private static final Logger log = LoggerFactory.getLogger(Runner.class);
 
-    @Test
-    @SuppressWarnings("unchecked")
-    public void test() throws Exception {
+    private static final ClassLoader PARENT_CLASSLOADER = ClassWorld.class.getClassLoader();
+
+    private final ClassWorld classWorld;
+
+    public Runner(ClassWorld classWorld) {
+        this.classWorld = classWorld;
+    }
+
+    public void execute() throws Exception {
+
+        // Bits to steal from DefaultClassRealmManager and DefaultMavenPluginManager
+
+        // setup classWorld from bootstrap process
+        // setup coreRealm from configuration in classworlds.conf
+        // setup exported packages from core realm
+        // create the api realm by only letting through the exported packages
+        // setup exported artifacts from core realm to block the resolver from allowing these to be added
+
         Collection<Artifact> artifacts = resolve(Collections.singletonList(new Dependency(new DefaultArtifact("ca.ibodrov:classworlds-test-plugin-blue:1.0-SNAPSHOT"), "compile")));
 
-        ClassWorld world = new ClassWorld( "concord.core", Thread.currentThread().getContextClassLoader());
+        ClassRealm coreRealm = classWorld.getClassRealm( "concord.core" );
+        Class graphBuilder = coreRealm.loadClass("com.google.common.graph.GraphBuilder");
+        System.out.println("graphBuilder = " + graphBuilder + " from " + graphBuilder.getProtectionDomain().getCodeSource().getLocation().toURI());
 
-        ClassRealm pluginRealm = world.newRealm("blue");
-        //pluginRealm.setParentRealm(world.getClassRealm("concord.core"));
+        ClassRealm pluginRealm = classWorld.newRealm("blue");
+        if(pluginRealm.getParentClassLoader() == null) {
+            pluginRealm.setParentClassLoader(PARENT_CLASSLOADER);
+        }
+        Thread.currentThread().setContextClassLoader(pluginRealm);
+        pluginRealm.setParentRealm(classWorld.getClassRealm("concord.core"));
 
         for (Artifact a : artifacts) {
             URL url = a.getFile().toURL();
@@ -58,10 +84,27 @@ public class RunnerTest {
         pluginRealm.display();
 
         Class<Task> klass = (Class<Task>) pluginRealm.loadClass("ca.ibodrov.classworldstest.plugin.blue.BlueTask");
+        System.out.println("klass.getClassLoader() = " + klass.getClassLoader());
         Task task = klass.newInstance();
-        Thread.currentThread().setContextClassLoader(pluginRealm);
-
+        System.out.println("task.getClass().getClassLoader() = " + task.getClass().getClassLoader());
         task.run("hi!");
+    }
+
+    // Setup classloads to boot from the configuration
+    public static void main(String[] args) throws Exception {
+        System.setProperty("classworlds.bootstrapped", "true");
+        String workingDirectory = new File("").getAbsolutePath();
+        String concordHome = workingDirectory + "/src/concord";
+        System.out.println("concordHome = " + concordHome);
+        System.setProperty("concord.home", concordHome);
+        Launcher.main(new String[]{});
+    }
+
+    // Classworlds knows how to call this special method
+    public static void main(String[] args, ClassWorld classWorld) throws Exception {
+        System.out.println("Hello! I am being executed by the ClassWorlds Launcher!");
+        Runner runner = new Runner(classWorld);
+        runner.execute();
     }
 
     private Collection<Artifact> resolve(List<Dependency> deps) throws IOException {
