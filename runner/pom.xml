@@ -29,11 +29,13 @@
             <artifactId>classworlds-test-plugin-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- use an older version of Guava to test the plugin classloader
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>27.1-jre</version> <!-- use an older version of Guava to test the plugin classloader -->
+            <version>27.1-jre</version>
         </dependency>
+        -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
