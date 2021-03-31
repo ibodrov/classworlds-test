@@ -32,7 +32,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>27.1-jre</version> <!-- use an older version of Guava to test the plugin classloader -->
+            <version>29.0-jre</version> <!-- use an older version of Guava to test the plugin classloader -->
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
